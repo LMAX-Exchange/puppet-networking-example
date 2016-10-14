@@ -1,0 +1,15 @@
+#Managed by puppet
+[Unit]
+Description=Brings up the dummy interface needed by tfx
+After=network.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/sbin/ifup dummy0
+ExecStart=/usr/sbin/ip link set multicast on dev dummy0
+ExecStop=/usr/sbin/ifdown dummy0
+
+[Install]
+WantedBy=multi-user.target
+

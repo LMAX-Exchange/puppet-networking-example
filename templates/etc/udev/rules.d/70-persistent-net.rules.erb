@@ -1,0 +1,15 @@
+# Managed by Puppet
+
+<% if @interfaces.is_a?(Hash) -%>
+<%   @interfaces.sort.each do |key,val| -%>
+<%     if val['hwaddr'] -%>
+SUBSYSTEM=="net", ACTION=="add", DRIVERS=="?*", ATTR{address}=="<%= val['hwaddr'] -%>", ATTR{type}=="1", KERNEL=="eth*", NAME="<%= key -%>"
+<%     end # if val['hwaddr'] -%>
+<%   end # @interfaces.sort.each -%>
+<% end -%>
+<% if @extra_udev_static_interface_names.is_a?(Hash) -%>
+<%   @extra_udev_static_interface_names.sort.each do |interface,hwaddr| -%>
+SUBSYSTEM=="net", ACTION=="add", DRIVERS=="?*", ATTR{address}=="<%= hwaddr.downcase -%>", ATTR{type}=="1", KERNEL=="eth*", NAME="<%= interface -%>"
+<%   end -%>
+<% end -%>
+

@@ -1,0 +1,17 @@
+#Managed by puppet
+ESSID="<%= @name %>"
+NAME=<%= @name %>
+ONBOOT=yes
+DEVICE=<%= @device_name %>
+HWADDR=<%= @mac %>
+MODE=Managed
+KEY_MGMT=WPA-PSK
+TYPE=Wireless
+BOOTPROTO=dhcp
+DEFROUTE=yes
+IPV4_FAILURE_FATAL=no
+IPV6INIT=no
+IPV6_FAILURE_FATAL=no
+SECURITYMODE=open
+PEERDNS=yes
+PEERROUTES=yes

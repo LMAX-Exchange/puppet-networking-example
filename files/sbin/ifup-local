@@ -1,0 +1,13 @@
+#!/bin/bash
+
+# 
+# This script runs after an interface has been brought up.
+# 
+# This is the correct place to set a dummy interface to be multicast, not rc.local
+#
+
+INTERFACE=$1
+
+if [[ "$INTERFACE" =~ dummy[0-9]* ]] ; then
+  /sbin/ifconfig $INTERFACE multicast
+fi

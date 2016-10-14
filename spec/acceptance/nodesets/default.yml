@@ -1,0 +1,10 @@
+HOSTS:
+  centos-66-x64:
+    roles:
+      - master
+    platform: el-6-x86_64
+    box: timhughes/centos6
+    hypervisor: vagrant
+CONFIG:
+  log_level: verbose
+  type: foss

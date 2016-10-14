@@ -1,0 +1,20 @@
+## file managed by modulesync_configs
+## Any manual changes will be overwritten
+pkg/
+Gemfile.lock
+vendor/
+/spec/fixtures/.librarian
+/spec/fixtures/.tmp
+/spec/fixtures/Puppetfile.lock
+/spec/fixtures/modules
+/spec/fixtures/manifests
+/spec/fixtures/vendor
+.vagrant/
+.bundle/
+.ruby-version
+coverage/
+.idea/
+/log
+/junit
+.*.sw*
+*.iml

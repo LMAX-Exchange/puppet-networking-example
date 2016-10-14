@@ -1,0 +1,11 @@
+# Managed by Puppet
+DEVICE=<%= @name %>
+ONBOOT=yes
+USERCTL=no
+IPADDR=<%= @ipaddr %>
+NETMASK=<%= @netmask %>
+NETWORK=<%= @network %>
+BOOTPROTO=static
+<% if @nm_controlled != "" -%>
+NM_CONTROLLED=<%= @nm_controlled %>
+<% end -%>

@@ -1,0 +1,29 @@
+## file managed by modulesync_configs
+## Any manual changes will be overwritten
+#
+# Documentation http://doc.gitlab.com/ci/yaml/README.html
+# Syntax Checker https://ci.yb.lmax/lint
+before_script:
+  - 'rm Gemfile.lock || true'
+
+'ruby1.8.7-p352':
+  script:
+    - 'export RBENV_VERSION=1.8.7-p352'
+    - 'ruby -v'
+    - 'bundle install --path vendor/bundle --without system_tests'
+    - 'bundle exec rake test'
+
+'ruby1.9.3-p551':
+  script:
+    - 'export RBENV_VERSION=1.9.3-p551'
+    - 'ruby -v'
+    - 'bundle install --path vendor/bundle --without system_tests'
+    - 'bundle exec rake test'
+
+'ruby2.1.6':
+  script:
+    - 'export RBENV_VERSION=2.1.6'
+    - 'ruby -v'
+    - 'bundle install --path vendor/bundle --without system_tests'
+    - 'bundle exec rake test'
+
