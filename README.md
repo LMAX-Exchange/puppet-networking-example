@@ -70,12 +70,16 @@ It is designed to educate new LMAX staff, plus a few people on the Puppet Users 
 The discussion in Puppet Users thread [How to handle predictable network interface names](https://groups.google.com/d/msg/puppet-users/67qJWyF-40w/VZE5KaOlBAAJ)
 is what motivated me to fork our internal module to describe it to other people.
 
-I'm now going to fabricate a scenario that will explain the goals we are trying to reach by doing networking this way in Puppet.
-The scenario is very loosely modelled on our own Financial systems architecture but more closely matches the culture of
-of the Infrastructure team, which is how our networking
-evolved into what it is now. If the scenario sounds completely alien to you - for example if you run a Cloud web farm
+I'm now going to fabricate a scenario (or a "story") that will explain the goals we are trying to reach by doing networking this way in Puppet.
+While the scenario's business is very loosely modelled on our own Financial systems architecture, the culture and values of the
+Infrastructure team in the scenario match our own Infrastructure team much more closely - which is how our Puppet networking evolved
+into what it is now.
+
+If the scenario sounds completely alien to you - for example if you run a Cloud web farm
 where every instance is a transient short-lived VM - then the design pattern this module is promoting probably won't be that
-helpful to you.
+helpful to you. Likewise if you are a 1 man Sys Admin shop then this level of abstration will read like a monumental waste
+of time. If however you run an "enterprise" shop, manage several hundred servers and "things being the same" is very important
+to you, then hopefully you'll get something from this.
 
 # A Scenario
 
@@ -88,9 +92,10 @@ physical goods and stock control is also handled by a 3rd party company.
 
 The load balancer is connected to the Internet. An internal network connects load balancer to web severs. a separate internal network
 allows all the internal applications to communicate with each other: web, logic, payments and stock. For security reasons, only the
-application logic server is allowed to comminucate with the database and it has a physically separate network to do this. The payments
+application logic server is allowed to comminucate with the database and it has a physically separate network to do this - a "defence
+in depth" approach. The payments
 processing server talks to the 3rd party API over a private link, not over the Internet. Same with the stock control system - it's a private
-connection to the warehouse. There's also other networks, like for management, but they aren't important here.
+connection to the warehouse. There's also other networks, like for management, but they aren't important for this discussion.
 
 If you were to draw this system design it would look like this. Orange rectangles are networks implemented by switches or routers,
 blue blocks are servers that the company manages with Puppet, and grey boxes are 3rd party APIs that the company's software talks to:
@@ -98,7 +103,7 @@ blue blocks are servers that the company manages with Puppet, and grey boxes are
 ![Networking Architecture Example](./docs/networking_abstraction_example.jpg)
 
 When the tech team built their production site they were pretty regimental and organised about the whole thing. The VLAN tags on the switches
-matched part of the IP address so the engineers always knew which VLAN is supposed to be each network and vice versa (eg: 10.0.2.x is VLAN 2).
+matched part of the IP address so the engineers always knew which VLAN is supposed to be which network and vice versa (eg: 10.0.2.x is VLAN 2).
 
 | VLAN | Network | IP Range |
 |----------|---------|----------|
@@ -112,10 +117,13 @@ Now if we add example IPs to the diagram:
 
 ![Networking Architecture With IPs](./docs/networking_abstraction_with_ips.jpg)
 
-Managing the networking of the machines above is pretty straight forward. Using this networking module they have done it in Hiera. Here
-are two example Hiera data files for some machines (some of the YAML has been truncated for brevity).
+Managing the networking of the machines above is pretty straight forward. The tech team write a networking module that knows how
+to write Red Hat config files to disk and they store the network information in Hiera. Here
+are two example Hiera data files for some machines (some of the YAML has been truncated for brevity). You don't need to worry about
+understanding exactly how the Puppet/Hiera code works at this point, but as you can probably imagine it uses
+[create_resources](https://docs.puppet.com/puppet/latest/reference/function.html#createresources).
 
-The Internet Front End / Web server:
+The Hiera data for the Internet Front End / Web server:
 
 ```yaml
 networking::interfaces:
@@ -165,7 +173,7 @@ All pretty simple and manageable so far.
 
 ### The Company Expands
 
-The business does well and so they decide to open another site on another continent.
+The E-Commerce business does well and so they decide to open another site on another continent.
 The application architecture remains pretty much the same, so the tech team are just
 copying what they've done already to build the next set of infrastructure.  It is a 
 logically separate application but still inside the same company intranet, so the IP addressing
@@ -191,8 +199,8 @@ The only thing that changes is the IP ranges:
 10.0.0.0/16 is the Europe application, and 10.1.0.0/16 is the US application. The Engineering team have created standards
 where the third octet always describes the type of Network, ie: 3 is the Application network no matter what Site it is in.
 This sort of consistency helps the engineers' mindset and to recognise patterns, eg: an IP address of 10.1.2.5 is instantly
-recognised as a Web IP, the engineers expect that this IP will be doing something with HTTP traffic.
-It also makes the engineers feel warm and fuzzy, which is a good thing. An IP address can
+recognised as a "Web" IP, the engineers expect that this IP will be doing something with HTTP traffic.
+The consistency also makes the engineers feel warm and fuzzy, which is a good thing. An IP address can
 be broken down into it's component parts like so:
 
 
@@ -244,7 +252,7 @@ networking::interfaces:
 ```
 
 It took the engineers a some time to add the Bonding configuration to every machine. A few mistakes
-were made but corrected. The Hiera data is starting to be difficult to manage.
+were made but corrected. The Hiera data is starting to be annoying to work with because there's a lot of it.
 
 We're now at about (18 x 26 x 2) 1000 lines of networking information in Hiera. 
 
@@ -252,9 +260,9 @@ We're now at about (18 x 26 x 2) 1000 lines of networking information in Hiera.
 
 The application design needs to be extended - the web servers are now doing credit card fraud checks before
 the processing reaches the application logic or payment servers. This means the web servers need to be able to
-communicate with the payment API, which means they all need to be connected to the payments network (VLAN 5).
+communicate with the 3rd party Payment API, which means they all need to be connected to the payments network (VLAN 5).
 
-This is what a web server's Hiera YAML contains now:
+This work is done, and this is what a web server's Hiera YAML contains now:
 
 ```yaml
 networking::interfaces:
@@ -300,22 +308,22 @@ networking::interfaces:
 ```
 
 There were over 2 dozen web servers that had to have the bond5 interface added. Unfortunately due to the sheer number
-of file edits the engineers had to make some mistakes happened, a web server got missed and that server was unable to do
+of file edits the engineers made some mistakes; a web server got missed and that server was unable to do
 credit card checks when the code was released to production.
 
-Bosses were unhappy. Several kittens were killed. It was bad for publicity.
+Bosses were unhappy, several kittens were killed, it was bad for publicity, etc, etc.
 
 ### Getting Out Of Hand
 
-The engineering team now has to build a hardware-equivalent replica (but with reduced capacity) so the development
-team can do performance benchmarks against it. The company also needs several other Dev and Staging instances
+The engineering team has been asked to build a hardware-equivalent replica (but with reduced capacity) so the development
+team can do performance benchmarks against their code. The company also needs several other Dev and Staging instances
 of the application, but need it cheapely so it has to be solved with VMs and shared networking switches. The
 number of Puppet nodes will increase by another 20-30 at least.  Also because there are no
-payment or stock APIs to talk to in these test environments, they are all stubbed to one development server
+payment or stock APIs to talk to in these test environments, they are all going to be stubbed to one development server
 (ie: the Payment and Stock network are the same for all of Perf, Dev and Staging).
 
-This is achievable with the same Puppet/Hiera approach, but the standards the engineering team set at the start are
-breaking - shared switches between environments means the VLAN tags have to be different and
+This *is* achievable with the same Puppet/Hiera approach, but the standards the engineering team set at the start are
+being stretched - shared switches between environments means the VLAN tags have to be different and
 they no longer represent the logical network they that are delivering. The warm fuzzy feeling is fading.
 
 Finally, the unhappy bosses have also come back with a mandate - architecture changes must be consistent across all
@@ -333,8 +341,8 @@ and pastes. There is too much "necessary data" that needs to be added to a node'
 It's also <i>impossible</i> to enforce any sort of architecture consistency when each node individually describes the
 sum of it's entire networking configuration.
 
-That's the rather large intro done. The rest of this page is the documentation for the module itself, demonstrating
-how you can use it solve different problems from the scenario above.
+That's the rather large intro done. The rest of this page demonstrates how you can use thus Puppet module to solve
+the different problems from the scenario above. The final part is the Puppet module documentation itself.
 
 ## Solving The Scenario's Problems
 
