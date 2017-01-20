@@ -71,8 +71,8 @@ The discussion in Puppet Users thread [How to handle predictable network interfa
 is what motivated me to fork our internal module to describe it to other people.
 
 I'm now going to fabricate a scenario that will explain the goals we are trying to reach by doing networking this way in Puppet.
-The scenario loosely mimics the type of technology operation but more closely matches the culture that LMAX themselves have,
-which is how our networking
+The scenario is very loosely modelled on our own Financial systems architecture but more closely matches the culture of
+of the Infrastructure team, which is how our networking
 evolved into what it is now. If the scenario sounds completely alien to you - for example if you run a Cloud web farm
 where every instance is a transient short-lived VM - then the design pattern this module is promoting probably won't be that
 helpful to you.
@@ -190,14 +190,16 @@ The only thing that changes is the IP ranges:
 
 10.0.0.0/16 is the Europe application, and 10.1.0.0/16 is the US application. The Engineering team have created standards
 where the third octet always describes the type of Network, ie: 3 is the Application network no matter what Site it is in.
-This sort of consistency makes the engineers warm and fuzzy. An IP address can be broken down into it's component
-parts like so:
+This sort of consistency helps the engineers' mindset and to recognise patterns, eg: an IP address of 10.1.2.5 is instantly
+recognised as a Web IP, the engineers expect that this IP will be doing something with HTTP traffic.
+It also makes the engineers feel warm and fuzzy, which is a good thing. An IP address can
+be broken down into it's component parts like so:
 
 
 ![IP Breakdown](./docs/IP_breakdown.jpg)
 
-Five new servers are purchased, the Hiera files from the firt servers are copied and someone
-does a Sed search and replace to fix the IP addresses. There are now 10 per-node YAML
+Five new servers are purchased, the Hiera files from the first servers are copied and someone
+does a Sed search and replace to change the IP addresses. There are now 10 per-node YAML
 files with 10-15 lines each, so about 100 lines of Hiera config. Job done, still manageable.
 
 ### Ever Expanding
@@ -244,7 +246,7 @@ networking::interfaces:
 It took the engineers a some time to add the Bonding configuration to every machine. A few mistakes
 were made but corrected. The Hiera data is starting to be difficult to manage.
 
-We're now at about (18*26*2) 1000 lines of networking information in Hiera. 
+We're now at about (18 x 26 x 2) 1000 lines of networking information in Hiera. 
 
 ### An Architecture Change
 
@@ -319,13 +321,13 @@ they no longer represent the logical network they that are delivering. The warm 
 Finally, the unhappy bosses have also come back with a mandate - architecture changes must be consistent across all
 environments, we can't have a repeat of the credit card check problem.
 
-With that, the way the engineering team is approaching network config needs to be re-thought.
+With that, the way the engineering team is approaching network config needs to be completely overhauled.
 
 ### The Problem This Module Solves
 
 What started as a very flexible way of defining networking in Hiera eventually ballooned into a large amount
 of configuration that was hard for the engineering team to handle. The approach, while flexible, wasn't helpful
-in keeping things the same. Architecture changes required too many edits. Expanding capacity required too many copy
+in keeping things "the same". Architecture changes required too many edits. Expanding capacity required too many copy
 and pastes. There is too much "necessary data" that needs to be added to a node's Hiera file.
 
 It's also <i>impossible</i> to enforce any sort of architecture consistency when each node individually describes the
@@ -393,7 +395,7 @@ class profile::application_network($host_octet, $slaves) {
 
 **NOTE:** Ignore the `$::networking` parameters for now, I'll get into that in the [Abstraction](#abstraction) section.
 
-We only need to supply two pieces of information to the `simple_bond` Defined Type; the bonding slaves and the fourth octet
+We only need to supply two pieces of information to the `networking::simple_bond` Defined Type; the bonding slaves and the fourth octet
 of the IP address.  We will rely on Puppet's Automatic Parameter Lookup feature to get this data from Hiera. The node's Hiera will contain
 these keys to pass parameters to `profile::application_network`:
 
@@ -403,9 +405,8 @@ profile::application_network::slaves: [ 'eth1', 'eth3', ]
 ```
 
 Where before we had 13 lines of Hiera to describe this machine's network, we now have 2. The configuration that gets written to the server
-remains the same, but we've reduced the amount of config our Puppet/Hiera uses to generate this config.
-The `profile::application_network` Puppet Class is also re-usable on any node that is connected
-to the Application Network.
+remains the same, but we've reduced the amount of Hiera data our Puppet/Hiera uses to generate this config.
+The `profile::application_network` Puppet Class is also re-usable on any node that is connected to the Application Network.
 If we applied that to the company's entire estate of around 70 servers, we'd reduce 900 lines of Hiera to around 100 or so.
 This is a good deduplication win.
 
@@ -527,9 +528,9 @@ The simplicity of the Puppet code above relies on the engineering team being abl
 1. The bonding interface on the Application network is "bond3", named after the VLAN tag
 
 With the introduction of the Performance, Dev and Staging environments the engineering team need to make
-the Payments and Stock networks in Perf, Dev and Staging
-the <i>same</i> network because those external APIs are being stubbed internally, which breaks
-one of the design rules. The physical layout will need to change, but the logical design doesn't need to change. After all,
+the Payments and Stock networks in Perf, Dev and Staging the <i>same physical network</i> (because those external APIs are
+being stubbed internally).
+The physical layout will need to change, but the logical design doesn't need to change. After all,
 Web Servers are still connected to the payments network.  Here is how you would do this.
 
 Sticking with the same [Scenario](#scenario) Web Server Profile above:
@@ -576,7 +577,7 @@ networking::subnet_site: '10.12'
 ```
 
 This will by default create payments network IPs in the 10.10.5.0/24, 10.11.5.0/24 and 10.12.5.0/24 ranges by default, but
-we need them the same. We can override the default payments subnet in Hiera to specify common IP range:
+we need them as the same IP range. We can override the Payments subnet in Hiera to specify common IP range:
 
 ```yaml
 ---
@@ -597,14 +598,15 @@ networking::subnet_site: '10.12'
 networking::subnet_payments: '192.168.45'
 ```
 
-No changes need to be made to `profile::web_server`.
+No changes need to be made to `profile::web_server` - the logical design remains the same.
 
 ### Shared Infrastructure and VLAN tags
 
 The Perf, Dev and Staging environments had to be built cheaply. While the real environments had physically separate network
 interfaces for the different networks, the dev environments may have only one or two interfaces with the different networks
-tagged on top of that. The engineering team will be unable to keep their VLAN standard, but should be able to preserve
-their IP address standard, ie: the Application Network is always 10.x.3.x.  In order to do this we will have to modify our Profile:
+tagged on top of that. The engineering team will have to abandon their VLAN standard, but should be able to preserve
+their IP address standard, ie: the Application Network is always 10.x.3.x.  In order to do this we will have to modify our
+Profile because how the network is physically implemented needs to change:
 
 ```puppet
 class ::profile::web_server(
@@ -700,8 +702,9 @@ networking::subnet_payments: '192.168.45'
 profile::web_server::vlan_tagged: true
 ```
 
-With the code and data above, we can create a Web Server in the EU Production network and it will get a 10.0.2.x Web IP,
-and using the exact same profile in Performance it will get a 10.10.2.x Web IP. The physical implementation is 
+With the code and data above, we can create a Web Server in the EU Production network and it will get a 10.0.2.x Web IP
+on a dedicated bonded interface, and using the exact same profile in Performance it will get a 10.10.2.x Web IP vlan tagged
+on a shared bonded interface. The physical implementation is 
 handled by the web server profile, and controlling the profile is handled by Hiera. From the point of view of the nodes
 they are both just "Web Servers", and they don't specify anything to do with how the network is physically implemented.
 
